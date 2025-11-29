@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}My Favorites{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>⭐ My Saved News</h1>
+    <p>Your favorite headlines for later reading</p>
+</div>
+
+<!-- Category Filter Buttons -->
+<div class="category-filter">
+    <a href="{{ url_for('favorites') }}" class="category-btn {% if not current_category %}active{% endif %}">
+        🌐 All Favorites
+    </a>
+    {% for category in categories %}
+        <a href="{{ url_for('favorites', category=category.category_name) }}" 
+           class="category-btn {% if current_category == category.category_name %}active{% endif %}">
+            {{ category.category_icon }} {{ category.category_name }}
+        </a>
+    {% endfor %}
+</div>
+
+<!-- Current Filter Display -->
+{% if current_category %}
+<div class="current-filter">
+    <span>Showing: <strong>{{ current_category }}</strong> favorites</span>
+    <a href="{{ url_for('favorites') }}" class="clear-filter">✕ Clear Filter</a>
+</div>
+{% endif %}
+
+<!-- Favorites Grid -->
+<div class="news-grid">
+    {% if headlines %}
+        {% for headline in headlines %}
+        <div class="news-card">
+            <!-- Category Badge -->
+            <span class="category-badge">{{ headline.category_icon }} {{ headline.category_name }}</span>
+            
+            <!-- Image -->
+            {% if headline.image_url %}
+                <img src="{{ headline.image_url }}" alt="{{ headline.title }}" class="news-image">
+            {% else %}
+                <div class="news-image-placeholder">{{ headline.category_icon }}</div>
+            {% endif %}
+            
+            <!-- Content -->
+            <div class="news-content">
+                <h3 class="news-title">{{ headline.title }}</h3>
+                <p class="news-description">{{ headline.description[:150] }}...</p>
+                
+                <!-- Meta Info -->
+                <div class="news-meta">
+                    <span class="source">{{ headline.source_name }}</span>
+                    <span class="date">Saved: {{ headline.saved_at.strftime('%b %d, %Y') }}</span>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="news-actions">
+                    <a href="{{ headline.url }}" target="_blank" class="btn-read">Read Full Article →</a>
+                    
+                    <form method="POST" action="{{ url_for('remove_favorite', headline_id=headline.headline_id) }}" style="display:inline;">
+                        <button type="submit" class="btn-favorite favorited" title="Remove from favorites">
+                            ★
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-news">
+            {% if current_category %}
+                <p>No saved {{ current_category }} news yet. <a href="{{ url_for('index', category=current_category) }}">Browse {{ current_category }}</a> to add favorites!</p>
+            {% else %}
+                <p>No saved news yet. Start adding favorites from the <a href="{{ url_for('index') }}">homepage</a>!</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

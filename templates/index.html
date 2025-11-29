@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Latest News Headlines{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📰 Latest News Headlines</h1>
+    <p>Stay updated with the latest news from trusted sources</p>
+</div>
+
+<!-- Category Filter Buttons -->
+<div class="category-filter">
+    <a href="{{ url_for('index') }}" class="category-btn {% if not current_category %}active{% endif %}">
+        🌐 All News
+    </a>
+    {% for category in categories %}
+        <a href="{{ url_for('index', category=category.category_name) }}" 
+           class="category-btn {% if current_category == category.category_name %}active{% endif %}">
+            {{ category.category_icon }} {{ category.category_name }}
+        </a>
+    {% endfor %}
+</div>
+
+<!-- Current Filter Display -->
+{% if current_category %}
+<div class="current-filter">
+    <span>Showing: <strong>{{ current_category }}</strong> news</span>
+    <a href="{{ url_for('index') }}" class="clear-filter">✕ Clear Filter</a>
+</div>
+{% endif %}
+
+<!-- News Grid -->
+<div class="news-grid">
+    {% if headlines %}
+        {% for headline in headlines %}
+        <div class="news-card">
+            <!-- Category Badge -->
+            <span class="category-badge">{{ headline.category_icon }} {{ headline.category_name }}</span>
+            
+            <!-- Image -->
+            {% if headline.image_url %}
+                <img src="{{ headline.image_url }}" alt="{{ headline.title }}" class="news-image">
+            {% else %}
+                <div class="news-image-placeholder">{{ headline.category_icon }}</div>
+            {% endif %}
+            
+            <!-- Content -->
+            <div class="news-content">
+                <h3 class="news-title">{{ headline.title }}</h3>
+                <p class="news-description">{{ headline.description[:150] }}...</p>
+                
+                <!-- Meta Info -->
+                <div class="news-meta">
+                    <span class="source">{{ headline.source_name }}</span>
+                    <span class="date">{{ headline.publish_date.strftime('%b %d, %Y') }}</span>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="news-actions">
+                    <a href="{{ headline.url }}" target="_blank" class="btn-read">Read Full Article →</a>
+                    
+                    {% if session.user_id %}
+                        {% if headline.headline_id|is_favorited %}
+                            <form method="POST" action="{{ url_for('remove_favorite', headline_id=headline.headline_id) }}" style="display:inline;">
+                                <button type="submit" class="btn-favorite favorited" title="Remove from favorites">
+                                    ★
+                                </button>
+                            </form>
+                        {% else %}
+                            <form method="POST" action="{{ url_for('add_favorite', headline_id=headline.headline_id) }}" style="display:inline;">
+                                <button type="submit" class="btn-favorite" title="Add to favorites">
+                                    ☆
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="btn-favorite" title="Login to save">☆</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-news">
+            <p>No news available in this category. Click "Refresh News" to scrape latest headlines.</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('index', page=page-1, category=current_category) }}" class="page-btn">← Previous</a>
+    {% endif %}
+    
+    <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+    
+    {% if page < total_pages %}
+        <a href="{{ url_for('index', page=page+1, category=current_category) }}" class="page-btn">Next →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
