@@ -1,8 +1,14 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response
 import mysql.connector
+import io
+import csv
+from openpyxl import Workbook
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import DB_CONFIG, SECRET_KEY, DEBUG, HEADLINES_PER_PAGE
 from scraper import scrape_all_sources
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -15,6 +21,11 @@ def get_db():
 # ==================== HOME PAGE ====================
 @app.route('/')
 def index():
+    # Log visit to analytics
+    try:
+        log_visit("Homepage")
+    except Exception:
+        pass
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
@@ -82,7 +93,7 @@ def register():
         
         # Hash password
         hashed_pw = generate_password_hash(password)
-        
+         
         conn = get_db()
         cursor = conn.cursor()
         
@@ -105,6 +116,11 @@ def register():
 # ==================== LOGIN ====================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Log visit
+    try:
+        log_visit("Login Page")
+    except Exception:
+        pass
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
@@ -183,6 +199,11 @@ def remove_favorite(headline_id):
 # ==================== MY FAVORITES ====================
 @app.route('/favorites')
 def favorites():
+    # Log visit
+    try:
+        log_visit("Favorites")
+    except Exception:
+        pass
     if 'user_id' not in session:
         flash('Please login to view favorites!', 'error')
         return redirect(url_for('login'))
@@ -235,6 +256,11 @@ def favorites():
 # ==================== CATEGORY STATS ====================
 @app.route('/categories')
 def category_stats():
+    # Log visit
+    try:
+        log_visit("Category Stats")
+    except Exception:
+        pass
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
@@ -256,6 +282,11 @@ def category_stats():
 # ==================== SCRAPE NEWS (ADMIN) ====================
 @app.route('/scrape')
 def scrape():
+    # Log visit
+    try:
+        log_visit("Scrape")
+    except Exception:
+        pass
     if 'user_id' not in session:
         flash('Please login first!', 'error')
         return redirect(url_for('login'))
@@ -286,6 +317,162 @@ def is_favorited(headline_id):
     conn.close()
     
     return result is not None
+
+
+@app.template_filter('timesince')
+def timesince(dt):
+    """Return a short human-friendly relative time (e.g. '2h ago') for a datetime.
+
+    If `dt` is a string and can't be parsed with fromisoformat, the original
+    string is returned.
+    """
+    if not dt:
+        return ''
+
+    # If the value is a string, try ISO format parsing first
+    if isinstance(dt, str):
+        try:
+            dt_obj = datetime.fromisoformat(dt)
+        except Exception:
+            # Could not parse; return raw string
+            return dt
+    else:
+        dt_obj = dt
+
+    # Use naive UTC/Local difference depending on dt_obj tzinfo
+    now = datetime.utcnow()
+    try:
+        if getattr(dt_obj, 'tzinfo', None):
+            # If dt_obj has tzinfo, compare in its zone to avoid errors
+            now = datetime.now(dt_obj.tzinfo)
+    except Exception:
+        pass
+
+    delta = now - dt_obj
+    seconds = int(delta.total_seconds())
+    if seconds < 60:
+        return f"{seconds}s ago"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes}m ago"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours}h ago"
+    days = hours // 24
+    if days < 7:
+        return f"{days}d ago"
+    # Older than a week — show a date
+    return dt_obj.strftime('%b %d, %Y')
+
+
+# ==================== VISITOR LOGGING ====================
+def log_visit(page_name):
+    """Record a visitor action into the visit_logs table."""
+    try:
+        ip = request.remote_addr
+    except Exception:
+        ip = None
+    user_id = session.get('user_id')
+
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO visit_logs (user_id, ip_address, visited_page) VALUES (%s, %s, %s)",
+            (user_id, ip, page_name)
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ==================== REPORT DOWNLOADS ====================
+@app.route('/download/visitors/csv')
+def download_visitors_csv():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id, ip_address, visited_page, visited_at FROM visit_logs ORDER BY visited_at DESC")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['ID', 'User ID', 'IP Address', 'Page', 'Visited At'])
+    for r in rows:
+        cw.writerow(r)
+
+    output = si.getvalue()
+    return Response(output, mimetype='text/csv', headers={
+        'Content-Disposition': 'attachment; filename=visitors_report.csv'
+    })
+
+
+@app.route('/download/visitors/excel')
+def download_visitors_excel():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id, ip_address, visited_page, visited_at FROM visit_logs ORDER BY visited_at DESC")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Visitors'
+    ws.append(['ID', 'User ID', 'IP Address', 'Page', 'Visited At'])
+    for r in rows:
+        # If visited_at is datetime-like, keep as string
+        ws.append([r[0], r[1], r[2], r[3], str(r[4])])
+
+    bio = io.BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    return send_file(bio, as_attachment=True, download_name='visitors_report.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.route('/download/visitors/pdf')
+def download_visitors_pdf():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id, ip_address, visited_page, visited_at FROM visit_logs ORDER BY visited_at DESC LIMIT 50")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    p.setFont('Helvetica-Bold', 16)
+    p.drawString(72, height - 72, 'Visitors Report (Last 50 Visits)')
+    p.setFont('Helvetica', 10)
+    y = height - 100
+    line_height = 14
+
+    for r in rows:
+        text = f"{r[0]} | user:{r[1]} | {r[2]} | {r[3]} | {r[4]}"
+        p.drawString(72, y, text)
+        y -= line_height
+        if y < 72:
+            p.showPage()
+            p.setFont('Helvetica', 10)
+            y = height - 72
+
+    p.save()
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='visitors_report.pdf', mimetype='application/pdf')
+
+
+@app.route('/reports')
+def reports():
+    # Simple reports dashboard
+    try:
+        log_visit('Reports Page')
+    except Exception:
+        pass
+    return render_template('reports.html')
 
 if __name__ == '__main__':
     app.run(debug=DEBUG)

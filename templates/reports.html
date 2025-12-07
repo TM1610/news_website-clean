@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports & Analytics - NewsHub{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h2>Reports &amp; Analytics</h2>
+    <small class="text-muted">Download visitor reports or view analytics</small>
+  </div>
+
+  <div class="card p-4 shadow-sm">
+    <div class="row g-3">
+      <div class="col-12 col-md-4">
+        <a href="{{ url_for('download_visitors_csv') }}" class="btn btn-primary w-100">Download Visitors Report (CSV)</a>
+      </div>
+      <div class="col-12 col-md-4">
+        <a href="{{ url_for('download_visitors_excel') }}" class="btn btn-success w-100">Download Visitors Report (Excel)</a>
+      </div>
+      <div class="col-12 col-md-4">
+        <a href="{{ url_for('download_visitors_pdf') }}" class="btn btn-danger w-100">Download Visitors Report (PDF)</a>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}

@@ -1,6 +1,6 @@
 -- Create Database
-CREATE DATABASE IF NOT EXISTS news_db;
-USE news_db;
+CREATE DATABASE IF NOT EXISTS news_07;
+USE news_07;
 
 -- 1. Users Table
 CREATE TABLE users (
@@ -76,4 +76,13 @@ INSERT INTO news_sources (source_name, source_url) VALUES
 CREATE INDEX idx_headline_date ON news_headlines(publish_date DESC);
 CREATE INDEX idx_user_favorites ON favorites(user_id);
 CREATE INDEX idx_headline_source ON news_headlines(source_id);
+
+-- Visitor tracking
+CREATE TABLE IF NOT EXISTS visit_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    ip_address VARCHAR(50),
+    visited_page VARCHAR(200),
+    visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 CREATE INDEX idx_headline_category ON news_headlines(category_id);
