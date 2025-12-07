@@ -5,7 +5,7 @@ import csv
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from werkzeug.security import generate_password_hash, check_password_hash
+
 from config import DB_CONFIG, SECRET_KEY, DEBUG, HEADLINES_PER_PAGE
 from scraper import scrape_all_sources
 from datetime import datetime
@@ -91,8 +91,8 @@ def register():
         email = request.form['email']
         password = request.form['password']
         
-        # Hash password
-        hashed_pw = generate_password_hash(password)
+        # Store password simply (plain text) as requested
+        hashed_pw = password
          
         conn = get_db()
         cursor = conn.cursor()
@@ -132,7 +132,7 @@ def login():
         cursor.close()
         conn.close()
         
-        if user and check_password_hash(user['password'], password):
+        if user and user['password'] == password:
             session['user_id'] = user['user_id']
             session['username'] = user['username']
             flash(f'Welcome back, {user["username"]}!', 'success')

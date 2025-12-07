@@ -5,8 +5,7 @@ __pycache__/
 venv/
 env/
 
-# Keep local config with secrets out of the repo
-config.py
+# Keep local config with secrets out of the rep
 
 *.db
 .DS_Store
