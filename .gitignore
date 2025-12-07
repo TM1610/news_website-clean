@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+venv/
+env/
+
+# Keep local config with secrets out of the repo
+config.py
+
+*.db
+.DS_Store
