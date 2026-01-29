@@ -1,10 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 import mysql.connector
 import io
-import csv
 from openpyxl import Workbook
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 
 from config import DB_CONFIG, SECRET_KEY, DEBUG, HEADLINES_PER_PAGE
 from scraper import scrape_all_sources
@@ -390,23 +387,8 @@ def log_visit(page_name):
 # ==================== REPORT DOWNLOADS ====================
 @app.route('/download/visitors/csv')
 def download_visitors_csv():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, user_id, ip_address, visited_page, visited_at FROM visit_logs ORDER BY visited_at DESC")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    si = io.StringIO()
-    cw = csv.writer(si)
-    cw.writerow(['ID', 'User ID', 'IP Address', 'Page', 'Visited At'])
-    for r in rows:
-        cw.writerow(r)
-
-    output = si.getvalue()
-    return Response(output, mimetype='text/csv', headers={
-        'Content-Disposition': 'attachment; filename=visitors_report.csv'
-    })
+    # CSV export removed; redirect back to reports page
+    return redirect(url_for('reports'))
 
 
 @app.route('/download/visitors/excel')
@@ -434,35 +416,8 @@ def download_visitors_excel():
 
 @app.route('/download/visitors/pdf')
 def download_visitors_pdf():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, user_id, ip_address, visited_page, visited_at FROM visit_logs ORDER BY visited_at DESC LIMIT 50")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-
-    p.setFont('Helvetica-Bold', 16)
-    p.drawString(72, height - 72, 'Visitors Report (Last 50 Visits)')
-    p.setFont('Helvetica', 10)
-    y = height - 100
-    line_height = 14
-
-    for r in rows:
-        text = f"{r[0]} | user:{r[1]} | {r[2]} | {r[3]} | {r[4]}"
-        p.drawString(72, y, text)
-        y -= line_height
-        if y < 72:
-            p.showPage()
-            p.setFont('Helvetica', 10)
-            y = height - 72
-
-    p.save()
-    buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name='visitors_report.pdf', mimetype='application/pdf')
+    # PDF export removed; redirect back to reports page
+    return redirect(url_for('reports'))
 
 
 @app.route('/reports')
