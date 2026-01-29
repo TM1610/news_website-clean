@@ -1,12 +1,13 @@
 import requests
 from bs4 import BeautifulSoup
-import mysql.connector
+import psycopg2
 from datetime import datetime
 from config import DB_CONFIG
 
 def get_db_connection():
     """Create database connection"""
-    return mysql.connector.connect(**DB_CONFIG)
+    return psycopg2.connect(**DB_CONFIG)
+
 
 def get_source_id(conn, source_name):
     """Get source_id from database"""
