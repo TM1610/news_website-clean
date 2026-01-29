@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
-import psycopg2
-import psycopg2.extras
+import psycopg
+from psycopg.rows import dict_row
+
 import io
 from openpyxl import Workbook
 from datetime import datetime
@@ -15,7 +16,8 @@ app.config['DEBUG'] = DEBUG
 
 # ==================== DATABASE CONNECTION ====================
 def get_db():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg.connect(**DB_CONFIG, row_factory=dict_row)
+
 
 
 # ==================== HOME PAGE ====================
@@ -27,7 +29,8 @@ def index():
         pass
 
     conn = get_db()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = conn.cursor()
+
 
     page = request.args.get('page', 1, type=int)
     category_filter = request.args.get('category')
@@ -123,7 +126,8 @@ def login():
 
     if request.method == 'POST':
         conn = get_db()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor = conn.cursor()
+
 
         cursor.execute("SELECT * FROM users WHERE email = %s", (request.form['email'],))
         user = cursor.fetchone()
@@ -186,7 +190,8 @@ def favorites():
         return redirect(url_for('login'))
 
     conn = get_db()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = conn.cursor()
+
 
     cursor.execute("SELECT * FROM categories ORDER BY category_name")
     categories = cursor.fetchall()
